@@ -24,9 +24,6 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Configurar Android SDK
-        uses: android-actions/setup-android@v3
-
       - name: Preparar Keystore y Entorno
         run: |
           if [ -f "debug.keystore.base64" ]; then
