@@ -42,15 +42,17 @@ jobs:
           fi
           chmod +x gradlew
 
-      - name: Compilar APK (assembleDebug)
-        run: ./gradlew assembleDebug --no-daemon --no-configuration-cache --stacktrace
+      - name: Compilar APKs (Release y Debug)
+        run: ./gradlew assembleRelease assembleDebug --no-daemon --no-configuration-cache --stacktrace
 
       - name: Subir APK como Artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: InverTrack-App-Debug
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: InverTrack-APKs
+          path: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Publicar Release directa con APK
@@ -61,7 +63,9 @@ jobs:
           name: InverTrack v1.0 (Build ${{ github.run_number }})
           body: |
             ### 📱 InverTrack APK Descarga Directa
-            Descarga el archivo **`app-debug.apk`** que aparece abajo en los archivos adjuntos (Assets) e instálalo en tu celular.
-          files: app/build/outputs/apk/debug/app-debug.apk
+            Descarga e instala **`app-release.apk`** para disfrutar del máximo rendimiento y fluidez en tu celular (sin demoras ni retrasos).
+          files: |
+            app/build/outputs/apk/release/app-release.apk
+            app/build/outputs/apk/debug/app-debug.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

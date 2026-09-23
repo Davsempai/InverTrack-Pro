@@ -49,6 +49,14 @@ import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import java.util.Locale
 
+private val ItemCardShape = RoundedCornerShape(16.dp)
+private val ItemCardGradient = Brush.verticalGradient(
+    colors = listOf(
+        ObsidianSurfaceElevated,
+        ObsidianSurface
+    )
+)
+
 @Composable
 fun ProjectItemCard(
     projectItem: ProjectWithWithdrawals,
@@ -70,16 +78,9 @@ fun ProjectItemCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        ObsidianSurfaceElevated,
-                        ObsidianSurface
-                    )
-                )
-            )
-            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .clip(ItemCardShape)
+            .background(ItemCardGradient)
+            .border(1.dp, borderColor, ItemCardShape)
             .clickable { onProjectClick(project.id) }
             .padding(16.dp)
             .testTag("project_item_${project.id}")

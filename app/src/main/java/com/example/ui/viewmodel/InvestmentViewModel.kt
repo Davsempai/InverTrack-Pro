@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,72 +41,89 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         }
     }
 
+    private data class CachedPortfolioData(
+        val projects: List<ProjectWithWithdrawals> = emptyList(),
+        val recentProjects: List<ProjectWithWithdrawals> = emptyList(),
+        val summary: PortfolioSummary = PortfolioSummary(),
+        val monthlyReport: MonthlyReportSummary = MonthlyReportSummary(emptyList(), null, null, 0, 0.0),
+        val categories: List<String> = listOf("Todas")
+    )
+
+    private val cachedDataFlow: StateFlow<CachedPortfolioData> = repository.allProjectsWithWithdrawals
+        .map { projectsList ->
+            val categories = mutableListOf("Todas")
+            categories.addAll(projectsList.map { it.project.category }.distinct().sorted())
+            val summary = repository.computePortfolioSummary(projectsList)
+            val monthlyReport = computeMonthlyReport(projectsList)
+            CachedPortfolioData(
+                projects = projectsList,
+                recentProjects = projectsList.take(5),
+                summary = summary,
+                monthlyReport = monthlyReport,
+                categories = categories
+            )
+        }
+        .flowOn(Dispatchers.Default)
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = CachedPortfolioData()
+        )
+
     private val _searchQuery = MutableStateFlow("")
     private val _selectedStatusFilter = MutableStateFlow(FilterStatus.TODOS)
     private val _selectedCategoryFilter = MutableStateFlow("Todas")
     private val _selectedProjectId = MutableStateFlow<Long?>(null)
 
     val uiState: StateFlow<InvestmentUiState> = combine(
-        repository.allProjectsWithWithdrawals,
+        cachedDataFlow,
         _searchQuery,
         _selectedStatusFilter,
         _selectedCategoryFilter,
         _selectedProjectId
-    ) { projectsList, query, statusFilter, categoryFilter, selectedId ->
-        withContext(Dispatchers.Default) {
-            // Distinct categories
-            val categories = mutableListOf("Todas")
-            categories.addAll(projectsList.map { it.project.category }.distinct().sorted())
+    ) { cachedData, query, statusFilter, categoryFilter, selectedId ->
+        // Apply filters fast in memory
+        val filtered = if (query.isBlank() && statusFilter == FilterStatus.TODOS && categoryFilter == "Todas") {
+            cachedData.projects
+        } else {
+            cachedData.projects.filter { item ->
+                val matchesQuery = query.isBlank() ||
+                        item.project.name.contains(query, ignoreCase = true) ||
+                        item.project.category.contains(query, ignoreCase = true) ||
+                        item.project.notes.contains(query, ignoreCase = true) ||
+                        (item.project.fallenReason?.contains(query, ignoreCase = true) == true)
 
-            // Portfolio Summary
-            val summary = repository.computePortfolioSummary(projectsList)
-
-            // Calculate Monthly Metrics
-            val monthlyReport = computeMonthlyReport(projectsList)
-
-            // Apply filters fast
-            val filtered = if (query.isBlank() && statusFilter == FilterStatus.TODOS && categoryFilter == "Todas") {
-                projectsList
-            } else {
-                projectsList.filter { item ->
-                    val matchesQuery = query.isBlank() ||
-                            item.project.name.contains(query, ignoreCase = true) ||
-                            item.project.category.contains(query, ignoreCase = true) ||
-                            item.project.notes.contains(query, ignoreCase = true) ||
-                            (item.project.fallenReason?.contains(query, ignoreCase = true) == true)
-
-                    val matchesStatus = when (statusFilter) {
-                        FilterStatus.TODOS -> true
-                        FilterStatus.ACTIVOS -> item.project.status == ProjectStatus.ACTIVO
-                        FilterStatus.CAIDOS -> item.project.status == ProjectStatus.CAIDO
-                        FilterStatus.EN_GANANCIA -> item.isProfit
-                        FilterStatus.EN_PERDIDA -> !item.isBreakEven
-                    }
-
-                    val matchesCategory = categoryFilter == "Todas" || item.project.category.equals(categoryFilter, ignoreCase = true)
-
-                    matchesQuery && matchesStatus && matchesCategory
+                val matchesStatus = when (statusFilter) {
+                    FilterStatus.TODOS -> true
+                    FilterStatus.ACTIVOS -> item.project.status == ProjectStatus.ACTIVO
+                    FilterStatus.CAIDOS -> item.project.status == ProjectStatus.CAIDO
+                    FilterStatus.EN_GANANCIA -> item.isProfit
+                    FilterStatus.EN_PERDIDA -> !item.isBreakEven
                 }
+
+                val matchesCategory = categoryFilter == "Todas" || item.project.category.equals(categoryFilter, ignoreCase = true)
+
+                matchesQuery && matchesStatus && matchesCategory
             }
-
-            val selectedProjectItem = if (selectedId != null) {
-                projectsList.firstOrNull { it.project.id == selectedId }
-            } else null
-
-            InvestmentUiState(
-                projects = projectsList,
-                filteredProjects = filtered,
-                selectedProject = selectedProjectItem,
-                portfolioSummary = summary,
-                monthlyReport = monthlyReport,
-                searchQuery = query,
-                selectedStatusFilter = statusFilter,
-                selectedCategoryFilter = categoryFilter,
-                availableCategories = categories,
-                isLoading = false
-            )
         }
-    }.flowOn(Dispatchers.Default).stateIn(
+
+        val selectedProjectItem = if (selectedId != null) {
+            cachedData.projects.firstOrNull { it.project.id == selectedId }
+        } else null
+
+        InvestmentUiState(
+            projects = cachedData.projects,
+            filteredProjects = filtered,
+            selectedProject = selectedProjectItem,
+            portfolioSummary = cachedData.summary,
+            monthlyReport = cachedData.monthlyReport,
+            searchQuery = query,
+            selectedStatusFilter = statusFilter,
+            selectedCategoryFilter = categoryFilter,
+            availableCategories = cachedData.categories,
+            isLoading = false
+        )
+    }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = InvestmentUiState(isLoading = true)

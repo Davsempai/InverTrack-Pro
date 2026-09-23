@@ -31,6 +31,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -65,15 +66,14 @@ fun MonthlyReportsScreen(
 ) {
     val report = state.monthlyReport
     val summary = state.portfolioSummary
+    val reversedMetrics = remember(report.monthlyMetrics) { report.monthlyMetrics.reversed() }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        containerColor = ObsidianBackground
-    ) { innerPadding ->
+    Box(
+        modifier = modifier.fillMaxSize()
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
                 .testTag("monthly_reports_screen"),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -240,7 +240,7 @@ fun MonthlyReportsScreen(
             }
 
             // Monthly rows in reverse order (newest first)
-            items(report.monthlyMetrics.reversed(), key = { it.yearMonth }) { metric ->
+            items(reversedMetrics, key = { it.yearMonth }) { metric ->
                 MonthlyMetricItemCard(metric = metric)
             }
 

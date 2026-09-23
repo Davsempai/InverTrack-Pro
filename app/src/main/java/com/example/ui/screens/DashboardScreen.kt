@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,44 +77,16 @@ fun DashboardScreen(
     modifier: Modifier = Modifier
 ) {
     val summary = state.portfolioSummary
+    val recentProjects = remember(state.projects) { state.projects.take(5) }
 
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .testTag("dashboard_screen"),
-        containerColor = ObsidianBackground,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddProjectClick,
-                containerColor = EmeraldNeon,
-                contentColor = ObsidianBackground,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.testTag("fab_add_project_dashboard")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Nuevo Proyecto",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Proyecto",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
+            .testTag("dashboard_screen")
+    ) {
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 80.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // App Header
@@ -331,13 +304,42 @@ fun DashboardScreen(
                     }
                 }
             } else {
-                items(state.projects.take(5), key = { it.project.id }) { item ->
+                items(recentProjects, key = { it.project.id }) { item ->
                     ProjectItemCard(
                         projectItem = item,
                         onProjectClick = onProjectClick,
                         onAddWithdrawalClick = { onAddWithdrawalClick(it) }
                     )
                 }
+            }
+        }
+
+        // Floating Action Button
+        FloatingActionButton(
+            onClick = onAddProjectClick,
+            containerColor = EmeraldNeon,
+            contentColor = ObsidianBackground,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("fab_add_project_dashboard")
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Nuevo Proyecto",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Proyecto",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
             }
         }
     }

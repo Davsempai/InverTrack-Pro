@@ -63,42 +63,13 @@ fun ProjectsScreen(
     onAddProjectClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Scaffold(
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .testTag("projects_screen"),
-        containerColor = ObsidianBackground,
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAddProjectClick,
-                containerColor = EmeraldNeon,
-                contentColor = ObsidianBackground,
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.testTag("fab_add_project")
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Nuevo Proyecto",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "Proyecto",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
+            .testTag("projects_screen")
+    ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+            modifier = Modifier.fillMaxSize()
         ) {
             // Search Field
             Box(
@@ -244,7 +215,7 @@ fun ProjectsScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(state.filteredProjects, key = { it.project.id }) { item ->
@@ -255,6 +226,35 @@ fun ProjectsScreen(
                         )
                     }
                 }
+            }
+        }
+
+        // Floating Action Button
+        FloatingActionButton(
+            onClick = onAddProjectClick,
+            containerColor = EmeraldNeon,
+            contentColor = ObsidianBackground,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+                .testTag("fab_add_project")
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Nuevo Proyecto",
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Proyecto",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
             }
         }
     }

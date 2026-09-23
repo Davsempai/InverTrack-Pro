@@ -227,7 +227,7 @@ fun MonthlyChartCanvas(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
-                        .pointerInput(metrics) {
+                        .pointerInput(count) {
                             detectTapGestures { offset ->
                                 val step = size.width / count
                                 val index = (offset.x / step).toInt().coerceIn(0, count - 1)
