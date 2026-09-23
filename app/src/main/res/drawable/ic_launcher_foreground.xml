@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Upward financial trend curve and glowing chart bar -->
+    <!-- Glowing accent circle -->
+    <path
+        android:pathData="M54,54m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0"
+        android:strokeWidth="1.5"
+        android:strokeColor="#2200E676"
+        android:fillColor="#00000000" />
+
+    <!-- Candlestick bar 1 -->
+    <path
+        android:pathData="M34,68V52 M34,52V46 M34,68V72"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00E676" />
+    <path
+        android:pathData="M31.5,52h5v16h-5z"
+        android:fillColor="#00E676" />
+
+    <!-- Candlestick bar 2 -->
+    <path
+        android:pathData="M46,62V42 M46,42V38 M46,62V66"
+        android:strokeWidth="1.5"
+        android:strokeColor="#69F0AE" />
+    <path
+        android:pathData="M43.5,42h5v20h-5z"
+        android:fillColor="#69F0AE" />
+
+    <!-- Candlestick bar 3 (Highest) -->
+    <path
+        android:pathData="M58,56V34 M58,34V28 M58,56V60"
+        android:strokeWidth="1.5"
+        android:strokeColor="#00E676" />
+    <path
+        android:pathData="M55.5,34h5v22h-5z"
+        android:fillColor="#00E676" />
+
+    <!-- Candlestick bar 4 / Take profit -->
+    <path
+        android:pathData="M70,48V30 M70,30V24 M70,48V52"
+        android:strokeWidth="1.5"
+        android:strokeColor="#B9F6CA" />
+    <path
+        android:pathData="M67.5,30h5v18h-5z"
+        android:fillColor="#B9F6CA" />
+
+    <!-- Dynamic upward trend arrow -->
+    <path
+        android:pathData="M28,68 L42,54 L52,60 L76,32"
+        android:strokeWidth="3.2"
+        android:strokeColor="#00E676"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- Arrow head -->
+    <path
+        android:pathData="M66,32 L76,32 L76,42"
+        android:strokeWidth="3.2"
+        android:strokeColor="#00E676"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

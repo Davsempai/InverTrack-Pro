@@ -1,0 +1,6 @@
+{
+  "name": "InverTrack",
+  "description": "Control de proyectos de inversión, retiros parciales, estado activo o caído, métricas de ganancia y pérdida, y reportes mensuales de rendimiento.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
