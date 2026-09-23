@@ -51,4 +51,13 @@ interface InvestmentDao {
 
     @Query("SELECT COUNT(*) FROM projects")
     suspend fun getProjectCount(): Int
+
+    @Query("DELETE FROM projects")
+    suspend fun deleteAllProjects()
+
+    @Query("DELETE FROM withdrawals")
+    suspend fun deleteAllWithdrawals()
+
+    @Query("DELETE FROM projects WHERE name IN (:names)")
+    suspend fun deleteProjectsByNames(names: List<String>)
 }

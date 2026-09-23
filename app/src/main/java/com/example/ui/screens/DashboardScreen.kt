@@ -345,10 +345,17 @@ fun DashboardScreen(
 
 @Composable
 private fun PortfolioHeroCard(summary: PortfolioSummary) {
+    val isEmpty = summary.totalInvested == 0.0 && summary.totalWithdrawn == 0.0
     val isProfit = summary.isNetProfit
     val net = summary.netProfitLoss
 
-    val gradientColors = if (isProfit) {
+    val gradientColors = if (isEmpty) {
+        listOf(
+            Color(0xFF0F1E19),
+            ObsidianSurfaceElevated,
+            ObsidianSurface
+        )
+    } else if (isProfit) {
         listOf(
             Color(0xFF072B1A),
             Color(0xFF04180E),
@@ -362,7 +369,13 @@ private fun PortfolioHeroCard(summary: PortfolioSummary) {
         )
     }
 
-    val glowBorder = if (isProfit) EmeraldNeon.copy(alpha = 0.5f) else CrimsonLoss.copy(alpha = 0.5f)
+    val glowBorder = if (isEmpty) {
+        EmeraldNeon.copy(alpha = 0.3f)
+    } else if (isProfit) {
+        EmeraldNeon.copy(alpha = 0.5f)
+    } else {
+        CrimsonLoss.copy(alpha = 0.5f)
+    }
 
     Box(
         modifier = Modifier
@@ -380,36 +393,36 @@ private fun PortfolioHeroCard(summary: PortfolioSummary) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "BALANCE NETO TOTAL",
-                    color = if (isProfit) EmeraldNeon else CrimsonLoss,
+                    text = if (isEmpty) "ESTADO DEL PORTAFOLIO" else "BALANCE NETO TOTAL",
+                    color = if (isEmpty || isProfit) EmeraldNeon else CrimsonLoss,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 1.sp
                 )
 
-                // Status Badge (Ganancia / Pérdida)
+                // Status Badge (Ganancia / Pérdida / Listo)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isProfit) EmeraldContainer else CrimsonLossDark)
+                        .background(if (isEmpty || isProfit) EmeraldContainer else CrimsonLossDark)
                         .border(
                             0.8.dp,
-                            if (isProfit) EmeraldNeon.copy(alpha = 0.6f) else CrimsonLoss.copy(alpha = 0.6f),
+                            if (isEmpty || isProfit) EmeraldNeon.copy(alpha = 0.6f) else CrimsonLoss.copy(alpha = 0.6f),
                             RoundedCornerShape(8.dp)
                         )
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = if (isProfit) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                            imageVector = if (isEmpty || isProfit) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
                             contentDescription = null,
-                            tint = if (isProfit) EmeraldNeon else CrimsonLoss,
+                            tint = if (isEmpty || isProfit) EmeraldNeon else CrimsonLoss,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (isProfit) "EN GANANCIA" else if (net < 0) "EN PÉRDIDA" else "EQUILIBRIO",
-                            color = if (isProfit) EmeraldNeon else CrimsonLoss,
+                            text = if (isEmpty) "LISTO PARA ESTRENAR" else if (isProfit) "EN GANANCIA" else if (net < 0) "EN PÉRDIDA" else "EQUILIBRIO",
+                            color = if (isEmpty || isProfit) EmeraldNeon else CrimsonLoss,
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -423,7 +436,7 @@ private fun PortfolioHeroCard(summary: PortfolioSummary) {
             val prefix = if (net > 0) "+$" else if (net < 0) "-$" else "$"
             Text(
                 text = String.format(Locale.US, "%s%,.2f", prefix, kotlin.math.abs(net)),
-                color = if (isProfit) EmeraldNeon else if (net < 0) CrimsonLoss else TextPrimary,
+                color = if (isEmpty) TextPrimary else if (isProfit) EmeraldNeon else if (net < 0) CrimsonLoss else TextPrimary,
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black,
                 letterSpacing = (-1).sp
@@ -431,29 +444,37 @@ private fun PortfolioHeroCard(summary: PortfolioSummary) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Overall ROI %
-            Text(
-                text = String.format(
-                    Locale.US,
-                    "Retorno Global: %s%.1f%% sobre capital invertido",
-                    if (summary.overallRoiPercentage > 0) "+" else "",
-                    summary.overallRoiPercentage
-                ),
-                color = TextSecondary,
-                fontSize = 12.sp
-            )
+            // Overall ROI % or Clean Welcome Message
+            if (isEmpty) {
+                Text(
+                    text = "Aún no has registrado transacciones. ¡Tu portafolio está limpio para estrenar!",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            } else {
+                Text(
+                    text = String.format(
+                        Locale.US,
+                        "Retorno Global: %s%.1f%% sobre capital invertido",
+                        if (summary.overallRoiPercentage > 0) "+" else "",
+                        summary.overallRoiPercentage
+                    ),
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+            }
 
             Spacer(modifier = Modifier.height(14.dp))
 
             // Overall Recovery Progress Bar
-            val recoveryFraction = (summary.recoveryPercentage / 100.0).coerceIn(0.0, 1.0).toFloat()
+            val recoveryFraction = if (isEmpty) 0f else (summary.recoveryPercentage / 100.0).coerceIn(0.0, 1.0).toFloat()
             LinearProgressIndicator(
                 progress = { recoveryFraction },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(3.dp)),
-                color = if (isProfit) EmeraldNeon else CrimsonLoss,
+                color = if (isEmpty || isProfit) EmeraldNeon else CrimsonLoss,
                 trackColor = ObsidianSurface
             )
 

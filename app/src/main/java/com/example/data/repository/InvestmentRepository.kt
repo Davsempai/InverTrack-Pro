@@ -225,115 +225,18 @@ class InvestmentRepository(private val dao: InvestmentDao) {
         return results
     }
 
-    suspend fun seedSampleDataIfEmpty() {
-        seedInitialDataIfEmpty()
+    suspend fun cleanSampleDataIfPresent() {
+        val sampleNames = listOf(
+            "Bot Arbitraje Algorítmico",
+            "Staking Liquid Validator",
+            "Pool Alto Rendimiento MetaYield",
+            "Tokenización Inmobiliaria Loft Centro"
+        )
+        dao.deleteProjectsByNames(sampleNames)
     }
 
-    suspend fun seedInitialDataIfEmpty() {
-        if (dao.getProjectCount() > 0) return
-
-        val now = System.currentTimeMillis()
-        val cal = Calendar.getInstance()
-
-        // 1. Proyecto en Ganancia (Bot Arbitraje)
-        cal.timeInMillis = now
-        cal.add(Calendar.MONTH, -4)
-        val p1Date = cal.timeInMillis
-
-        val p1Id = dao.insertProject(
-            InvestmentProject(
-                name = "Bot Arbitraje Algorítmico",
-                category = "Trading & Bots",
-                initialCapital = 1500.0,
-                startDate = p1Date,
-                status = ProjectStatus.ACTIVO,
-                riskLevel = RiskLevel.MEDIO,
-                notes = "Estrategia automatizada con retiros quincenales.",
-                currency = "$"
-            )
-        )
-
-        cal.add(Calendar.DAY_OF_MONTH, 20)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p1Id, amount = 350.0, date = cal.timeInMillis, note = "Retiro parcial inicial"))
-        cal.add(Calendar.DAY_OF_MONTH, 25)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p1Id, amount = 500.0, date = cal.timeInMillis, note = "Retiro ganancias mes 2"))
-        cal.add(Calendar.DAY_OF_MONTH, 30)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p1Id, amount = 700.0, date = cal.timeInMillis, note = "Recuperación total capital (Break-even)"))
-        cal.add(Calendar.DAY_OF_MONTH, 25)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p1Id, amount = 650.0, date = cal.timeInMillis, note = "Ganancia neta adicional"))
-
-        // 2. Proyecto Activo en Recuperación
-        cal.timeInMillis = now
-        cal.add(Calendar.MONTH, -3)
-        val p2Date = cal.timeInMillis
-
-        val p2Id = dao.insertProject(
-            InvestmentProject(
-                name = "Staking Liquid Validator",
-                category = "Crypto & DeFi",
-                initialCapital = 3000.0,
-                startDate = p2Date,
-                status = ProjectStatus.ACTIVO,
-                riskLevel = RiskLevel.BAJO,
-                notes = "Recompensas periódicas de validador.",
-                currency = "$"
-            )
-        )
-
-        cal.add(Calendar.DAY_OF_MONTH, 30)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p2Id, amount = 600.0, date = cal.timeInMillis, note = "Cosecha de rendimientos trimestrales"))
-        cal.add(Calendar.DAY_OF_MONTH, 35)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p2Id, amount = 850.0, date = cal.timeInMillis, note = "Retiro de seguridad"))
-
-        // 3. Proyecto Caído (Rugpull / Scam con pérdida parcial)
-        cal.timeInMillis = now
-        cal.add(Calendar.MONTH, -5)
-        val p3Date = cal.timeInMillis
-        cal.add(Calendar.MONTH, 2)
-        val p3FallenDate = cal.timeInMillis
-
-        val p3Id = dao.insertProject(
-            InvestmentProject(
-                name = "Pool Alto Rendimiento MetaYield",
-                category = "Crypto & DeFi",
-                initialCapital = 2000.0,
-                startDate = p3Date,
-                status = ProjectStatus.CAIDO,
-                riskLevel = RiskLevel.ESPECULATIVO,
-                notes = "Plataforma de yield farming agresivo.",
-                currency = "$",
-                fallenDate = p3FallenDate,
-                fallenReason = "Rugpull en el contrato de liquidez / Página cerrada"
-            )
-        )
-
-        cal.timeInMillis = p3Date
-        cal.add(Calendar.DAY_OF_MONTH, 15)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p3Id, amount = 400.0, date = cal.timeInMillis, note = "Primer retiro de rescate"))
-        cal.add(Calendar.DAY_OF_MONTH, 15)
-        dao.insertWithdrawal(WithdrawalTransaction(projectId = p3Id, amount = 350.0, date = cal.timeInMillis, note = "Segundo retiro antes del colapso"))
-
-        // 4. Tokenización Inmobiliaria
-        cal.timeInMillis = now
-        cal.add(Calendar.MONTH, -6)
-        val p4Date = cal.timeInMillis
-
-        val p4Id = dao.insertProject(
-            InvestmentProject(
-                name = "Tokenización Inmobiliaria Loft Centro",
-                category = "Bienes Raíces",
-                initialCapital = 4000.0,
-                startDate = p4Date,
-                status = ProjectStatus.ACTIVO,
-                riskLevel = RiskLevel.BAJO,
-                notes = "Rentas mensuales fijas garantizadas.",
-                currency = "$"
-            )
-        )
-
-        for (i in 1..5) {
-            cal.add(Calendar.DAY_OF_MONTH, 30)
-            dao.insertWithdrawal(WithdrawalTransaction(projectId = p4Id, amount = 220.0, date = cal.timeInMillis, note = "Renta mensual mes #$i"))
-        }
+    suspend fun clearAllData() {
+        dao.deleteAllWithdrawals()
+        dao.deleteAllProjects()
     }
 }

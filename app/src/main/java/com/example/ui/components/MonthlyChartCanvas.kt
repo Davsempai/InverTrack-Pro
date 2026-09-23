@@ -74,8 +74,6 @@ fun MonthlyChartCanvas(
     var selectedChartType by remember { mutableStateOf(ChartType.CUMULATIVE_PERFORMANCE) }
     var selectedIndex by remember { mutableIntStateOf(if (metrics.isNotEmpty()) metrics.size - 1 else -1) }
 
-    val textMeasurer = rememberTextMeasurer()
-
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -377,38 +375,32 @@ fun MonthlyChartCanvas(
                             )
                         }
                     }
+                }
+            }
 
-                    // Month X-Axis labels
-                    val labelStep = if (count > 6) 2 else 1
-                    metrics.forEachIndexed { idx, m ->
-                        if (idx % labelStep == 0 || idx == count - 1) {
-                            val x = if (count > 1) {
-                                if (selectedChartType == ChartType.CUMULATIVE_PERFORMANCE) {
-                                    (idx * (w / (count - 1))).coerceIn(20f, w - 40f)
-                                } else {
-                                    idx * (w / count) + (w / count) / 2
-                                }
-                            } else w / 2
+            Spacer(modifier = Modifier.height(4.dp))
 
-                            val textLayout = textMeasurer.measure(
-                                text = m.displayLabel.take(3),
-                                style = TextStyle(
-                                    color = if (idx == selectedIndex) EmeraldNeon else TextSecondary,
-                                    fontSize = 10.sp,
-                                    fontWeight = if (idx == selectedIndex) FontWeight.Bold else FontWeight.Normal
-                                )
-                            )
-
-                            drawText(
-                                textLayoutResult = textLayout,
-                                topLeft = Offset(x - (textLayout.size.width / 2), h - 20f)
-                            )
-                        }
+            // Fast Month X-Axis labels in native Compose Row (zero Canvas text measuring overhead)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val labelStep = if (count > 6) 2 else 1
+                metrics.forEachIndexed { idx, m ->
+                    if (idx % labelStep == 0 || idx == count - 1) {
+                        Text(
+                            text = m.displayLabel.take(3),
+                            color = if (idx == selectedIndex) EmeraldNeon else TextSecondary,
+                            fontSize = 10.sp,
+                            fontWeight = if (idx == selectedIndex) FontWeight.Bold else FontWeight.Normal
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Legend
             Row(

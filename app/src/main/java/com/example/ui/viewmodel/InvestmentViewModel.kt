@@ -13,12 +13,15 @@ import com.example.data.model.ProjectWithWithdrawals
 import com.example.data.model.RiskLevel
 import com.example.data.model.WithdrawalTransaction
 import com.example.data.repository.InvestmentRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -31,8 +34,9 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
     init {
         val db = AppDatabase.getDatabase(application)
         repository = InvestmentRepository(db.investmentDao())
-        viewModelScope.launch {
-            repository.seedInitialDataIfEmpty()
+        // Clean out any sample/test data immediately so the app is 100% clean and fresh
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.cleanSampleDataIfPresent()
         }
     }
 
@@ -48,77 +52,60 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         _selectedCategoryFilter,
         _selectedProjectId
     ) { projectsList, query, statusFilter, categoryFilter, selectedId ->
-        // Distinct categories
-        val categories = mutableListOf("Todas")
-        categories.addAll(projectsList.map { it.project.category }.distinct().sorted())
+        withContext(Dispatchers.Default) {
+            // Distinct categories
+            val categories = mutableListOf("Todas")
+            categories.addAll(projectsList.map { it.project.category }.distinct().sorted())
 
-        // Calculate Portfolio Summary
-        val totalInvested = projectsList.sumOf { it.project.initialCapital }
-        val totalWithdrawn = projectsList.sumOf { it.totalWithdrawn }
-        val netProfitLoss = totalWithdrawn - totalInvested
-        val overallRoi = if (totalInvested > 0) (netProfitLoss / totalInvested) * 100.0 else 0.0
+            // Portfolio Summary
+            val summary = repository.computePortfolioSummary(projectsList)
 
-        val activeProjects = projectsList.filter { it.project.status == ProjectStatus.ACTIVO || it.project.status == ProjectStatus.PAUSADO }
-        val fallenProjects = projectsList.filter { it.project.status == ProjectStatus.CAIDO }
+            // Calculate Monthly Metrics
+            val monthlyReport = computeMonthlyReport(projectsList)
 
-        val activeCapitalAtRisk = activeProjects.sumOf { it.capitalRemainingToRecover }
-        val totalCapitalLostInFallen = fallenProjects.sumOf { it.capitalRemainingToRecover }
-        val profitableCount = projectsList.count { it.isProfit }
+            // Apply filters fast
+            val filtered = if (query.isBlank() && statusFilter == FilterStatus.TODOS && categoryFilter == "Todas") {
+                projectsList
+            } else {
+                projectsList.filter { item ->
+                    val matchesQuery = query.isBlank() ||
+                            item.project.name.contains(query, ignoreCase = true) ||
+                            item.project.category.contains(query, ignoreCase = true) ||
+                            item.project.notes.contains(query, ignoreCase = true) ||
+                            (item.project.fallenReason?.contains(query, ignoreCase = true) == true)
 
-        val summary = PortfolioSummary(
-            totalInvested = totalInvested,
-            totalWithdrawn = totalWithdrawn,
-            netProfitLoss = netProfitLoss,
-            overallRoiPercentage = overallRoi,
-            activeCapitalAtRisk = activeCapitalAtRisk,
-            totalCapitalLostInFallen = totalCapitalLostInFallen,
-            totalProjectsCount = projectsList.size,
-            activeProjectsCount = activeProjects.size,
-            fallenProjectsCount = fallenProjects.size,
-            profitableProjectsCount = profitableCount
-        )
+                    val matchesStatus = when (statusFilter) {
+                        FilterStatus.TODOS -> true
+                        FilterStatus.ACTIVOS -> item.project.status == ProjectStatus.ACTIVO
+                        FilterStatus.CAIDOS -> item.project.status == ProjectStatus.CAIDO
+                        FilterStatus.EN_GANANCIA -> item.isProfit
+                        FilterStatus.EN_PERDIDA -> !item.isBreakEven
+                    }
 
-        // Calculate Monthly Metrics
-        val monthlyReport = computeMonthlyReport(projectsList)
+                    val matchesCategory = categoryFilter == "Todas" || item.project.category.equals(categoryFilter, ignoreCase = true)
 
-        // Apply filters
-        val filtered = projectsList.filter { item ->
-            val matchesQuery = query.isBlank() ||
-                    item.project.name.contains(query, ignoreCase = true) ||
-                    item.project.category.contains(query, ignoreCase = true) ||
-                    item.project.notes.contains(query, ignoreCase = true) ||
-                    (item.project.fallenReason?.contains(query, ignoreCase = true) == true)
-
-            val matchesStatus = when (statusFilter) {
-                FilterStatus.TODOS -> true
-                FilterStatus.ACTIVOS -> item.project.status == ProjectStatus.ACTIVO
-                FilterStatus.CAIDOS -> item.project.status == ProjectStatus.CAIDO
-                FilterStatus.EN_GANANCIA -> item.isProfit
-                FilterStatus.EN_PERDIDA -> !item.isBreakEven
+                    matchesQuery && matchesStatus && matchesCategory
+                }
             }
 
-            val matchesCategory = categoryFilter == "Todas" || item.project.category.equals(categoryFilter, ignoreCase = true)
+            val selectedProjectItem = if (selectedId != null) {
+                projectsList.firstOrNull { it.project.id == selectedId }
+            } else null
 
-            matchesQuery && matchesStatus && matchesCategory
+            InvestmentUiState(
+                projects = projectsList,
+                filteredProjects = filtered,
+                selectedProject = selectedProjectItem,
+                portfolioSummary = summary,
+                monthlyReport = monthlyReport,
+                searchQuery = query,
+                selectedStatusFilter = statusFilter,
+                selectedCategoryFilter = categoryFilter,
+                availableCategories = categories,
+                isLoading = false
+            )
         }
-
-        val selectedProjectItem = if (selectedId != null) {
-            projectsList.firstOrNull { it.project.id == selectedId }
-        } else null
-
-        InvestmentUiState(
-            projects = projectsList,
-            filteredProjects = filtered,
-            selectedProject = selectedProjectItem,
-            portfolioSummary = summary,
-            monthlyReport = monthlyReport,
-            searchQuery = query,
-            selectedStatusFilter = statusFilter,
-            selectedCategoryFilter = categoryFilter,
-            availableCategories = categories,
-            isLoading = false
-        )
-    }.stateIn(
+    }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = InvestmentUiState(isLoading = true)
@@ -144,6 +131,13 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         _selectedProjectId.value = projectId
     }
 
+    fun clearAllData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.clearAllData()
+            _selectedProjectId.value = null
+        }
+    }
+
     fun addProject(
         name: String,
         category: String,
@@ -152,7 +146,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         riskLevel: RiskLevel = RiskLevel.MEDIO,
         notes: String = ""
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val newProject = InvestmentProject(
                 name = name.trim(),
                 category = category.trim(),
@@ -174,7 +168,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         riskLevel: RiskLevel,
         notes: String
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val updated = project.copy(
                 name = name.trim(),
                 category = category.trim(),
@@ -187,7 +181,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun deleteProject(project: InvestmentProject) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.deleteProject(project)
             if (_selectedProjectId.value == project.id) {
                 _selectedProjectId.value = null
@@ -201,7 +195,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         date: Long = System.currentTimeMillis(),
         note: String = ""
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.addWithdrawal(
                 projectId = projectId,
                 amount = amount,
@@ -212,7 +206,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun deleteWithdrawal(transaction: WithdrawalTransaction) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.deleteWithdrawal(transaction)
         }
     }
@@ -222,32 +216,33 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         reason: String,
         date: Long = System.currentTimeMillis()
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.markProjectAsFallen(project, reason, date)
         }
     }
 
     fun updateProjectStatus(project: InvestmentProject, newStatus: ProjectStatus) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.updateProjectStatus(project, newStatus)
         }
     }
 
     private fun computeMonthlyReport(projects: List<ProjectWithWithdrawals>): MonthlyReportSummary {
-        val ymFormat = SimpleDateFormat("yyyy-MM", Locale.US)
-        val displayFormat = SimpleDateFormat("MMM yyyy", Locale("es", "ES"))
+        if (projects.isEmpty()) {
+            return MonthlyReportSummary(emptyList(), null, null, 0, 0.0)
+        }
 
         val monthsMap = TreeMap<String, MonthAccumulator>()
 
         for (item in projects) {
             val p = item.project
-            val ym = ymFormat.format(Date(p.startDate))
+            val ym = synchronized(lock) { ymFormat.format(Date(p.startDate)) }
             val acc = monthsMap.getOrPut(ym) { MonthAccumulator(ym) }
             acc.invested += p.initialCapital
             acc.projectsStarted++
 
             for (w in item.withdrawals) {
-                val wym = ymFormat.format(Date(w.date))
+                val wym = synchronized(lock) { ymFormat.format(Date(w.date)) }
                 val wAcc = monthsMap.getOrPut(wym) { MonthAccumulator(wym) }
                 wAcc.withdrawn += w.amount
                 wAcc.withdrawalsCount++
@@ -256,7 +251,7 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
 
         var runningInvested = 0.0
         var runningWithdrawn = 0.0
-        val metricList = mutableListOf<MonthlyMetric>()
+        val metricList = ArrayList<MonthlyMetric>(monthsMap.size)
 
         for ((ym, acc) in monthsMap) {
             runningInvested += acc.invested
@@ -264,9 +259,11 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
             val runningNet = runningWithdrawn - runningInvested
 
             val displayLabel = try {
-                val parsed = ymFormat.parse(ym)
-                if (parsed != null) displayFormat.format(parsed).replaceFirstChar { it.uppercase() } else ym
-            } catch (e: Exception) {
+                val parsed = synchronized(lock) { ymFormat.parse(ym) }
+                if (parsed != null) {
+                    synchronized(lock) { displayFormat.format(parsed) }.replaceFirstChar { it.uppercase() }
+                } else ym
+            } catch (_: Exception) {
                 ym
             }
 
@@ -305,5 +302,11 @@ class InvestmentViewModel(application: Application) : AndroidViewModel(applicati
         var withdrawn: Double = 0.0
         var projectsStarted: Int = 0
         var withdrawalsCount: Int = 0
+    }
+
+    companion object {
+        private val lock = Any()
+        private val ymFormat = SimpleDateFormat("yyyy-MM", Locale.US)
+        private val displayFormat = SimpleDateFormat("MMM yyyy", Locale("es", "ES"))
     }
 }
